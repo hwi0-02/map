@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>메인 페이지</title>
+    <link rel="stylesheet" href="/css/main.css">
+    <script src="https://kit.fontawesome.com/2a0dea312d.js" crossorigin="anonymous"></script>
+    <script src="https://dapi.kakao.com/v2/maps/sdk.js?appkey=f538f5082fb00e29b016ccd229c60455&libraries=services"></script>
+</head>
+<body>
+    <header>
+        <img class="logo" src="/images/seoil.png" alt="로고">
+        <div class="search-bar">
+            <input type="text" id="searchInput" placeholder="검색어를 입력하세요">
+            <button type="button" class="search-button" onclick="search()">
+                <i class="fa-solid fa-magnifying-glass"></i>
+            </button>
+        </div>
+        <div class="nav-links" id="nav-links">
+            <!-- 로그인 상태에 따라 동적으로 변경됩니다 -->
+        </div>
+    </header>
+
+    <nav>
+        <div class="category_logo">카테고리</div>
+        <div class="category">
+            <a href="region.html">지역별 맛집</a>
+            <a href="theme.html">테마별 맛집</a>
+            <a href="map1.html">서일대 지도 </a>
+            <a href="bestcafe.html">베스트 카페</a>
+        </div>
+    </nav>
+
+    <section class="main-content">
+        <h3>맛집 추천</h3>
+        <div class="second-content"></div>
+    </section>
+    <section class="main-content2">
+        <h3>지역 맛집 추천</h3>
+        <div class="second-content"></div>
+    </section>
+
+    <script>
+        // 검색 처리
+        function search() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            if (!keyword) {
+                alert('검색어를 입력해주세요!');
+                return;
+            }
+
+            const seoulUniversityLocation = {
+                lat: 37.552305, // 서일대학교 위도
+                lng: 127.086241 // 서일대학교 경도
+            };
+
+            window.location.href = `search.html?keyword=${encodeURIComponent(keyword)}&lat=${seoulUniversityLocation.lat}&lng=${seoulUniversityLocation.lng}`;
+        }
+
+        // 페이지 로드 시 실행
+        document.addEventListener("DOMContentLoaded", async () => {
+            const navLinks = document.getElementById("nav-links");
+            const mainContent = document.querySelector(".main-content .second-content");
+            const mainContent2 = document.querySelector(".main-content2 .second-content");
+
+            try {
+                const response = await fetch("/session-check");
+                const result = await response.json();
+
+                if (result.loggedIn) {
+                    navLinks.innerHTML = ` 
+                        <a href="/mypage.html"><span>안녕하세요! ${result.user.nickname}님</span></a> | 
+                        <a href="#" id="logout-link">로그아웃</a>
+                    `;
+                    addLogoutEvent(); // 로그아웃 이벤트 추가
+                } else {
+                    navLinks.innerHTML = ` 
+                        <a href="login.html">로그인</a> | 
+                        <a href="signup.html">회원가입</a>
+                    `;
+                }
+            } catch (error) {
+                console.error("세션 확인 오류:", error);
+            }
+
+            try {
+                const res = await fetch("/restaurants");
+                if (!res.ok) throw new Error("맛집 데이터를 불러오는데 실패했습니다.");
+                const restaurants = await res.json();
+
+                mainContent.innerHTML = restaurants.slice(0, 3).map(item => `
+                    <div class="item">
+                        <img src="${item.image_url}" alt="${item.name}">
+                        <h3>${item.name}</h3>
+                        <p>${item.category} | 평점: ${item.rating} | 리뷰: ${item.review}</p>
+                        <p>${item.address}</p>
+                    </div>
+                `).join("");
+
+                mainContent2.innerHTML = restaurants.slice(3).map(item => `
+                    <div class="item">
+                        <img src="${item.image_url}" alt="${item.name}">
+                        <h3>${item.name}</h3>
+                        <p>${item.category} | 평점: ${item.rating} | 리뷰: ${item.review}</p>
+                        <p>${item.address}</p>
+                    </div>
+                `).join("");
+            } catch (error) {
+                console.error("맛집 데이터 로드 오류:", error);
+                mainContent.innerHTML = "<p>맛집 정보를 불러오지 못했습니다.</p>";
+            }
+        });
+
+        // 로그아웃 처리
+        function addLogoutEvent() {
+            const logoutLink = document.getElementById("logout-link");
+            if (logoutLink) {
+                logoutLink.addEventListener("click", () => {
+                    fetch("/logout") 
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error("로그아웃 실패");
+                            }
+                            return response.json();
+                        })
+                        .then((data) => {
+                            alert(data.message); // 서버에서 메시지를 받아서 출력
+                            window.location.href = "/"; // 메인 페이지로 이동
+                        })
+                        .catch((error) => {
+                            console.error("로그아웃 처리 중 오류:", error);
+                            alert("로그아웃 중 문제가 발생했습니다. 다시 시도해주세요.");
+                        });
+                });
+            }
+        }
+    </script>
+</body>
+</html>
